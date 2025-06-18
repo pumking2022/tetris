@@ -1,218 +1,435 @@
-import React, { useState, useEffect } from 'react';
-import { RotateCcw, Trophy, Clock, Star } from 'lucide-react';
-
-const MemoryCardGame = () => {
-  const symbols = ['🎈', '⭐', '🎨', '🎵', '🌈', '🦋', '🌸', '🎯'];
-  const [cards, setCards] = useState([]);
-  const [flippedCards, setFlippedCards] = useState([]);
-  const [matchedPairs, setMatchedPairs] = useState([]);
-  const [moves, setMoves] = useState(0);
-  const [time, setTime] = useState(0);
-  const [gameStarted, setGameStarted] = useState(false);
-  const [gameWon, setGameWon] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  // 初始化遊戲
-  const initializeGame = () => {
-    const gameSymbols = [...symbols, ...symbols];
-    const shuffledCards = gameSymbols
-      .sort(() => Math.random() - 0.5)
-      .map((symbol, index) => ({
-        id: index,
-        symbol,
-        isFlipped: false,
-        isMatched: false
-      }));
-    
-    setCards(shuffledCards);
-    setFlippedCards([]);
-    setMatchedPairs([]);
-    setMoves(0);
-    setTime(0);
-    setGameStarted(false);
-    setGameWon(false);
-    setIsProcessing(false);
-  };
-
-  // 計時器
-  useEffect(() => {
-    let interval;
-    if (gameStarted && !gameWon) {
-      interval = setInterval(() => {
-        setTime(prevTime => prevTime + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [gameStarted, gameWon]);
-
-  // 初始化遊戲
-  useEffect(() => {
-    initializeGame();
-  }, []);
-
-  // 檢查遊戲是否勝利
-  useEffect(() => {
-    if (matchedPairs.length === symbols.length && gameStarted) {
-      setGameWon(true);
-      setGameStarted(false);
-    }
-  }, [matchedPairs.length, symbols.length, gameStarted]);
-
-  // 翻牌邏輯
-  const flipCard = (cardId) => {
-    if (!gameStarted) {
-      setGameStarted(true);
-    }
-
-    if (isProcessing || flippedCards.length >= 2) return;
-    
-    const card = cards.find(c => c.id === cardId);
-    if (card.isFlipped || card.isMatched) return;
-
-    const newFlippedCards = [...flippedCards, cardId];
-    setFlippedCards(newFlippedCards);
-
-    setCards(prevCards => 
-      prevCards.map(c => 
-        c.id === cardId ? { ...c, isFlipped: true } : c
-      )
-    );
-
-    if (newFlippedCards.length === 2) {
-      setIsProcessing(true);
-      setMoves(prevMoves => prevMoves + 1);
-      
-      const [firstCardId, secondCardId] = newFlippedCards;
-      const firstCard = cards.find(c => c.id === firstCardId);
-      const secondCard = cards.find(c => c.id === secondCardId);
-
-      setTimeout(() => {
-        if (firstCard.symbol === secondCard.symbol) {
-          // 配對成功
-          setMatchedPairs(prev => [...prev, firstCard.symbol]);
-          setCards(prevCards =>
-            prevCards.map(c =>
-              c.id === firstCardId || c.id === secondCardId
-                ? { ...c, isMatched: true }
-                : c
-            )
-          );
-        } else {
-          // 配對失敗，翻回去
-          setCards(prevCards =>
-            prevCards.map(c =>
-              c.id === firstCardId || c.id === secondCardId
-                ? { ...c, isFlipped: false }
-                : c
-            )
-          );
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>記憶翻牌遊戲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .controls {
+            margin-bottom: 30px;
+        }
+
+        .restart-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .restart-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .victory-message {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: bounce 1s ease-in-out;
+            display: none;
+        }
+
+        .victory-message.show {
+            display: block;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .card.flipped {
+            background: white;
+            color: #333;
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+            border: 3px solid #4CAF50;
+            animation: matched 0.6s ease-in-out;
+        }
+
+        @keyframes matched {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .card.processing {
+            pointer-events: none;
+        }
+
+        .card-front {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+            transition: transform 0.6s;
+        }
+
+        .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+            transform: rotateY(180deg);
+            transition: transform 0.6s;
+            background: white;
+            border-radius: 15px;
+        }
+
+        .card.flipped .card-front {
+            transform: rotateY(180deg);
+        }
+
+        .card.flipped .card-back {
+            transform: rotateY(0deg);
+        }
+
+        .instructions {
+            margin-top: 30px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #FFD700;
+        }
+
+        @media (max-width: 480px) {
+            .game-board {
+                gap: 10px;
+                max-width: 320px;
+            }
+            
+            .card {
+                font-size: 1.5rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .stats {
+                gap: 10px;
+            }
+            
+            .stat-item {
+                padding: 8px 15px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🧠 記憶翻牌遊戲</h1>
         
-        setFlippedCards([]);
-        setIsProcessing(false);
-      }, 1000);
-    }
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getScore = () => {
-    if (!gameWon) return 0;
-    const baseScore = 1000;
-    const timeBonus = Math.max(0, 300 - time) * 2;
-    const moveBonus = Math.max(0, 20 - moves) * 10;
-    return baseScore + timeBonus + moveBonus;
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-indigo-500 p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* 標題和統計 */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
-            🧠 記憶翻牌遊戲
-          </h1>
-          
-          <div className="flex justify-center items-center gap-6 mb-6">
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
-              <Clock className="inline mr-2 w-5 h-5" />
-              時間: {formatTime(time)}
+        <div class="stats">
+            <div class="stat-item">
+                🕐 時間: <span id="time">00:00</span>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
-              <Star className="inline mr-2 w-5 h-5" />
-              步數: {moves}
+            <div class="stat-item">
+                ⭐ 步數: <span id="moves">0</span>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
-              <Trophy className="inline mr-2 w-5 h-5" />
-              配對: {matchedPairs.length}/{symbols.length}
+            <div class="stat-item">
+                🏆 配對: <span id="pairs">0</span>/8
             </div>
-          </div>
-
-          <button
-            onClick={initializeGame}
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-2 rounded-lg transition-all duration-200 border border-white/30 hover:scale-105"
-          >
-            <RotateCcw className="inline mr-2 w-5 h-5" />
-            重新開始
-          </button>
         </div>
 
-        {/* 遊戲勝利提示 */}
-        {gameWon && (
-          <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white p-6 rounded-xl mb-6 text-center shadow-2xl animate-bounce">
-            <Trophy className="mx-auto mb-2 w-12 h-12" />
-            <h2 className="text-2xl font-bold mb-2">🎉 恭喜過關！</h2>
-            <p className="text-lg">
-              用時: {formatTime(time)} | 步數: {moves} | 得分: {getScore()}
-            </p>
-          </div>
-        )}
-
-        {/* 遊戲區域 */}
-        <div className="grid grid-cols-4 gap-4 max-w-2xl mx-auto">
-          {cards.map((card) => (
-            <div
-              key={card.id}
-              onClick={() => flipCard(card.id)}
-              className={`
-                aspect-square rounded-xl cursor-pointer transition-all duration-300 transform hover:scale-105
-                ${card.isFlipped || card.isMatched
-                  ? 'bg-white shadow-xl rotate-0' 
-                  : 'bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-xl'
-                }
-                ${card.isMatched ? 'ring-4 ring-green-400 bg-green-50' : ''}
-                ${isProcessing ? 'pointer-events-none' : ''}
-              `}
-            >
-              <div className="w-full h-full flex items-center justify-center text-4xl font-bold">
-                {card.isFlipped || card.isMatched ? (
-                  <span className={`${card.isMatched ? 'animate-pulse' : ''}`}>
-                    {card.symbol}
-                  </span>
-                ) : (
-                  <div className="text-white/70 text-2xl">?</div>
-                )}
-              </div>
-            </div>
-          ))}
+        <div class="controls">
+            <button class="restart-btn" onclick="initGame()">🔄 重新開始</button>
         </div>
 
-        {/* 遊戲說明 */}
-        <div className="mt-8 text-center">
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-white/90 max-w-md mx-auto">
-            <h3 className="font-bold mb-2">遊戲規則</h3>
-            <p className="text-sm">
-              點擊卡片翻開，找出相同的符號配對。用最少的步數和時間完成所有配對！
-            </p>
-          </div>
+        <div class="victory-message" id="victoryMessage">
+            <h2>🎉 恭喜過關！</h2>
+            <p>用時: <span id="finalTime"></span> | 步數: <span id="finalMoves"></span> | 得分: <span id="finalScore"></span></p>
         </div>
-      </div>
+
+        <div class="game-board" id="gameBoard"></div>
+
+        <div class="instructions">
+            <h3>🎮 遊戲規則</h3>
+            <p>點擊卡片翻開查看符號，找出相同的符號進行配對。目標是用最少的步數和時間完成所有配對！</p>
+        </div>
     </div>
-  );
-};
 
-export default MemoryCardGame;
+    <script>
+        const symbols = ['🎈', '⭐', '🎨', '🎵', '🌈', '🦋', '🌸', '🎯'];
+        let cards = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let moves = 0;
+        let time = 0;
+        let gameStarted = false;
+        let gameWon = false;
+        let isProcessing = false;
+        let timer;
+
+        function initGame() {
+            // 重置遊戲狀態
+            cards = [];
+            flippedCards = [];
+            matchedPairs = 0;
+            moves = 0;
+            time = 0;
+            gameStarted = false;
+            gameWon = false;
+            isProcessing = false;
+            
+            // 清除計時器
+            if (timer) {
+                clearInterval(timer);
+            }
+            
+            // 隱藏勝利訊息
+            document.getElementById('victoryMessage').classList.remove('show');
+            
+            // 創建卡片陣列
+            const gameSymbols = [...symbols, ...symbols];
+            const shuffledSymbols = gameSymbols.sort(() => Math.random() - 0.5);
+            
+            // 創建卡片物件
+            cards = shuffledSymbols.map((symbol, index) => ({
+                id: index,
+                symbol: symbol,
+                isFlipped: false,
+                isMatched: false
+            }));
+            
+            // 渲染遊戲板
+            renderBoard();
+            updateStats();
+        }
+
+        function renderBoard() {
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.innerHTML = '';
+            
+            cards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.onclick = () => flipCard(card.id);
+                
+                cardElement.innerHTML = `
+                    <div class="card-front">?</div>
+                    <div class="card-back">${card.symbol}</div>
+                `;
+                
+                if (card.isFlipped) {
+                    cardElement.classList.add('flipped');
+                }
+                
+                if (card.isMatched) {
+                    cardElement.classList.add('matched');
+                }
+                
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        function flipCard(cardId) {
+            if (!gameStarted) {
+                startTimer();
+                gameStarted = true;
+            }
+            
+            if (isProcessing || flippedCards.length >= 2) return;
+            
+            const card = cards[cardId];
+            if (card.isFlipped || card.isMatched) return;
+            
+            // 翻牌
+            card.isFlipped = true;
+            flippedCards.push(cardId);
+            
+            // 更新視覺
+            renderBoard();
+            
+            if (flippedCards.length === 2) {
+                isProcessing = true;
+                moves++;
+                updateStats();
+                
+                // 檢查配對
+                setTimeout(() => {
+                    checkMatch();
+                }, 1000);
+            }
+        }
+
+        function checkMatch() {
+            const [firstId, secondId] = flippedCards;
+            const firstCard = cards[firstId];
+            const secondCard = cards[secondId];
+            
+            if (firstCard.symbol === secondCard.symbol) {
+                // 配對成功
+                firstCard.isMatched = true;
+                secondCard.isMatched = true;
+                matchedPairs++;
+                
+                // 檢查遊戲是否結束
+                if (matchedPairs === symbols.length) {
+                    gameWon = true;
+                    gameStarted = false;
+                    clearInterval(timer);
+                    showVictory();
+                }
+            } else {
+                // 配對失敗
+                firstCard.isFlipped = false;
+                secondCard.isFlipped = false;
+            }
+            
+            flippedCards = [];
+            isProcessing = false;
+            renderBoard();
+            updateStats();
+        }
+
+        function startTimer() {
+            timer = setInterval(() => {
+                time++;
+                updateStats();
+            }, 1000);
+        }
+
+        function updateStats() {
+            document.getElementById('time').textContent = formatTime(time);
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('pairs').textContent = matchedPairs;
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function calculateScore() {
+            const baseScore = 1000;
+            const timeBonus = Math.max(0, 300 - time) * 2;
+            const moveBonus = Math.max(0, 20 - moves) * 10;
+            return baseScore + timeBonus + moveBonus;
+        }
+
+        function showVictory() {
+            const score = calculateScore();
+            document.getElementById('finalTime').textContent = formatTime(time);
+            document.getElementById('finalMoves').textContent = moves;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('victoryMessage').classList.add('show');
+        }
+
+        // 初始化遊戲
+        initGame();
+    </script>
+</body>
+</html>
