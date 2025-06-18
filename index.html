@@ -1,0 +1,218 @@
+import React, { useState, useEffect } from 'react';
+import { RotateCcw, Trophy, Clock, Star } from 'lucide-react';
+
+const MemoryCardGame = () => {
+  const symbols = ['🎈', '⭐', '🎨', '🎵', '🌈', '🦋', '🌸', '🎯'];
+  const [cards, setCards] = useState([]);
+  const [flippedCards, setFlippedCards] = useState([]);
+  const [matchedPairs, setMatchedPairs] = useState([]);
+  const [moves, setMoves] = useState(0);
+  const [time, setTime] = useState(0);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [gameWon, setGameWon] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // 初始化遊戲
+  const initializeGame = () => {
+    const gameSymbols = [...symbols, ...symbols];
+    const shuffledCards = gameSymbols
+      .sort(() => Math.random() - 0.5)
+      .map((symbol, index) => ({
+        id: index,
+        symbol,
+        isFlipped: false,
+        isMatched: false
+      }));
+    
+    setCards(shuffledCards);
+    setFlippedCards([]);
+    setMatchedPairs([]);
+    setMoves(0);
+    setTime(0);
+    setGameStarted(false);
+    setGameWon(false);
+    setIsProcessing(false);
+  };
+
+  // 計時器
+  useEffect(() => {
+    let interval;
+    if (gameStarted && !gameWon) {
+      interval = setInterval(() => {
+        setTime(prevTime => prevTime + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [gameStarted, gameWon]);
+
+  // 初始化遊戲
+  useEffect(() => {
+    initializeGame();
+  }, []);
+
+  // 檢查遊戲是否勝利
+  useEffect(() => {
+    if (matchedPairs.length === symbols.length && gameStarted) {
+      setGameWon(true);
+      setGameStarted(false);
+    }
+  }, [matchedPairs.length, symbols.length, gameStarted]);
+
+  // 翻牌邏輯
+  const flipCard = (cardId) => {
+    if (!gameStarted) {
+      setGameStarted(true);
+    }
+
+    if (isProcessing || flippedCards.length >= 2) return;
+    
+    const card = cards.find(c => c.id === cardId);
+    if (card.isFlipped || card.isMatched) return;
+
+    const newFlippedCards = [...flippedCards, cardId];
+    setFlippedCards(newFlippedCards);
+
+    setCards(prevCards => 
+      prevCards.map(c => 
+        c.id === cardId ? { ...c, isFlipped: true } : c
+      )
+    );
+
+    if (newFlippedCards.length === 2) {
+      setIsProcessing(true);
+      setMoves(prevMoves => prevMoves + 1);
+      
+      const [firstCardId, secondCardId] = newFlippedCards;
+      const firstCard = cards.find(c => c.id === firstCardId);
+      const secondCard = cards.find(c => c.id === secondCardId);
+
+      setTimeout(() => {
+        if (firstCard.symbol === secondCard.symbol) {
+          // 配對成功
+          setMatchedPairs(prev => [...prev, firstCard.symbol]);
+          setCards(prevCards =>
+            prevCards.map(c =>
+              c.id === firstCardId || c.id === secondCardId
+                ? { ...c, isMatched: true }
+                : c
+            )
+          );
+        } else {
+          // 配對失敗，翻回去
+          setCards(prevCards =>
+            prevCards.map(c =>
+              c.id === firstCardId || c.id === secondCardId
+                ? { ...c, isFlipped: false }
+                : c
+            )
+          );
+        }
+        
+        setFlippedCards([]);
+        setIsProcessing(false);
+      }, 1000);
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getScore = () => {
+    if (!gameWon) return 0;
+    const baseScore = 1000;
+    const timeBonus = Math.max(0, 300 - time) * 2;
+    const moveBonus = Math.max(0, 20 - moves) * 10;
+    return baseScore + timeBonus + moveBonus;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-indigo-500 p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* 標題和統計 */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
+            🧠 記憶翻牌遊戲
+          </h1>
+          
+          <div className="flex justify-center items-center gap-6 mb-6">
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
+              <Clock className="inline mr-2 w-5 h-5" />
+              時間: {formatTime(time)}
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
+              <Star className="inline mr-2 w-5 h-5" />
+              步數: {moves}
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
+              <Trophy className="inline mr-2 w-5 h-5" />
+              配對: {matchedPairs.length}/{symbols.length}
+            </div>
+          </div>
+
+          <button
+            onClick={initializeGame}
+            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-2 rounded-lg transition-all duration-200 border border-white/30 hover:scale-105"
+          >
+            <RotateCcw className="inline mr-2 w-5 h-5" />
+            重新開始
+          </button>
+        </div>
+
+        {/* 遊戲勝利提示 */}
+        {gameWon && (
+          <div className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white p-6 rounded-xl mb-6 text-center shadow-2xl animate-bounce">
+            <Trophy className="mx-auto mb-2 w-12 h-12" />
+            <h2 className="text-2xl font-bold mb-2">🎉 恭喜過關！</h2>
+            <p className="text-lg">
+              用時: {formatTime(time)} | 步數: {moves} | 得分: {getScore()}
+            </p>
+          </div>
+        )}
+
+        {/* 遊戲區域 */}
+        <div className="grid grid-cols-4 gap-4 max-w-2xl mx-auto">
+          {cards.map((card) => (
+            <div
+              key={card.id}
+              onClick={() => flipCard(card.id)}
+              className={`
+                aspect-square rounded-xl cursor-pointer transition-all duration-300 transform hover:scale-105
+                ${card.isFlipped || card.isMatched
+                  ? 'bg-white shadow-xl rotate-0' 
+                  : 'bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-xl'
+                }
+                ${card.isMatched ? 'ring-4 ring-green-400 bg-green-50' : ''}
+                ${isProcessing ? 'pointer-events-none' : ''}
+              `}
+            >
+              <div className="w-full h-full flex items-center justify-center text-4xl font-bold">
+                {card.isFlipped || card.isMatched ? (
+                  <span className={`${card.isMatched ? 'animate-pulse' : ''}`}>
+                    {card.symbol}
+                  </span>
+                ) : (
+                  <div className="text-white/70 text-2xl">?</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 遊戲說明 */}
+        <div className="mt-8 text-center">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-white/90 max-w-md mx-auto">
+            <h3 className="font-bold mb-2">遊戲規則</h3>
+            <p className="text-sm">
+              點擊卡片翻開，找出相同的符號配對。用最少的步數和時間完成所有配對！
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MemoryCardGame;
